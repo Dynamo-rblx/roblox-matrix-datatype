@@ -60,10 +60,12 @@ export type Matrix = {
 	isAntiSymmetric: (self: Matrix) -> (boolean);
 	isSingular: (self: Matrix) -> (boolean);
 	isInvertible: (self: Matrix) -> (boolean);
+	find: (self: Matrix, needle: number, initx: number, inity: number) -> (coordinates);
+	insertRow: (self:Matrix, points: {point | number}, position: number) -> Matrix;
+	insertColumn: (self:Matrix, points: {point | number}, position: number) -> Matrix;
 }
 
 -- HELPFUL FUNCTIONS
-
 local properties = {
 	"ClassName",
 	"Size",
@@ -85,6 +87,9 @@ local properties = {
 	"isSymmetric",
 	"isSingular",
 	"isInvertible",
+	"find",
+	"insertRow",
+	"insertColumn",
 }
 
 local allowedTypes = {
@@ -240,7 +245,7 @@ local function subtractVectors(a,b)
 	for i= 1, #a do
 		result[i] = a[i].Value - b[i].Value
 	end
-	
+
 	return result
 end
 
@@ -252,16 +257,16 @@ local function scaleVector(vectr, scalar)
 		newPoint.Value = vectr[i].Value * scalar
 		newPoint.Position.X = vectr[i].Position.X
 		newPoint.Position.Y = vectr[i].Position.Y
-		
+
 		table.insert(result, newPoint.Position.X, newPoint)
 	end
-	
+
 	return result
 end
 
 local function normalizeVector(vectr)
 	local vector_length = math.sqrt(dotProduct(vectr, vectr))
-	
+
 	if vector_length == 0 then error("Attempt to normalize zero vector") end
 	print("scale")
 	return scaleVector(vectr, 1/vector_length)
@@ -325,17 +330,17 @@ local function metamethods(givenmatrix: Matrix)
 			local resultant = ""
 
 			for i, row in writtenTable do
-				if i == 1 then
-					resultant = resultant.."\n? "..row.." ?\n"
+				--if i == 1 then
+				--	resultant = resultant.."\n⌈ "..row.." ⌉\n"
 
-				elseif i == #writtenTable then
-					resultant = resultant.."\n? "..row.." ?\n"
+				--elseif i == #writtenTable then
+				--	resultant = resultant.."\n⌊ "..row.." ⌋\n"
 
-				else
-					resultant = resultant.."\n| "..row.." |\n"
-				end
+				--else
+				--	resultant = resultant.."\n| "..row.." |\n"
+				--end
 
-				--resultant = resultant.."\n[ "..row.." ]\n"
+				resultant = resultant.."\n[ "..row.." ]\n"
 			end
 
 			return resultant
@@ -366,17 +371,17 @@ local function metamethods(givenmatrix: Matrix)
 			local resultant = ""
 
 			for i, row in writtenTable do
-				if i == 1 then
-					resultant = resultant.."\n? "..row.." ?\n"
+				--if i == 1 then
+				--	resultant = resultant.."\n⌈ "..row.." ⌉\n"
 
-				elseif i == #writtenTable then
-					resultant = resultant.."\n? "..row.." ?\n"
+				--elseif i == #writtenTable then
+				--	resultant = resultant.."\n⌊ "..row.." ⌋\n"
 
-				else
-					resultant = resultant.."\n| "..row.." |\n"
-				end
+				--else
+				--	resultant = resultant.."\n| "..row.." |\n"
+				--end
 
-				--resultant = resultant.."\n[ "..row.." ]\n"
+				resultant = resultant.."\n[ "..row.." ]\n"
 			end
 
 			return resultant
@@ -996,7 +1001,7 @@ function matrix:flood(value: {number})
 				index += 1
 			end
 		end
-		
+
 		return self
 	else
 		error("Number of values in table does not match number of values in Matrix")
@@ -1009,29 +1014,29 @@ end
 
 function matrix:getInverse()
 
-		if self.Size.A == self.Size.B then
-			local invertedMatrix: Matrix = metamethods(invertMatrix(self))
-			return invertedMatrix
+	if self.Size.A == self.Size.B then
+		local invertedMatrix: Matrix = metamethods(invertMatrix(self))
+		return invertedMatrix
+	else
+
+		local matrix_t: Matrix = metamethods(transposeMatrix(self))
+
+		if self.Size.B >= self.Size.A then
+
+			local MtM: Matrix = matrix_t*matrix
+			local invMtM = metamethods(invertMatrix(MtM))
+
+			return invMtM
+
 		else
 
-			local matrix_t: Matrix = metamethods(transposeMatrix(self))
+			local MMt: Matrix = matrix*matrix_t
+			local invMMt: Matrix = metamethods(invertMatrix(MMt))
 
-			if self.Size.B >= self.Size.A then
+			return invMMt
 
-				local MtM: Matrix = matrix_t*matrix
-				local invMtM = metamethods(invertMatrix(MtM))
-
-				return invMtM
-
-			else
-
-				local MMt: Matrix = matrix*matrix_t
-				local invMMt: Matrix = metamethods(invertMatrix(MMt))
-
-				return invMMt
-
-			end
 		end
+	end
 end
 
 function matrix:getDimensions()
@@ -1101,11 +1106,11 @@ end
 function matrix:getTrace()
 	if self.Size.A == self.Size.B then
 		local total = 0
-		
+
 		for y, row: row in self.Contents do
 			total += row[y].Value
 		end
-		
+
 		return total
 	else
 		error("Attempt to retrieve trace of a non-square Matrix")
@@ -1142,7 +1147,7 @@ end
 function matrix:getIdentity()
 	if self.Size.A == self.Size.B then
 		local identityMatrix = matrix.new(self.Size.A, self.Size.B, 0)
-		
+
 		for y, row: row in self.Contents do
 			for x, point: point in row do
 				if x == y then
@@ -1177,7 +1182,7 @@ end
 
 function matrix:isSymmetric()
 	if self.Size.A ~= self.Size.B then return false end
-	
+
 	for y, row: row in self.Contents do
 		for x, point: point in row do
 			if self.Contents[x][y].Value ~= point.Value then
@@ -1185,7 +1190,7 @@ function matrix:isSymmetric()
 			end
 		end
 	end
-	
+
 	return true
 end
 
@@ -1211,7 +1216,7 @@ end
 
 --function matrix:getRowsOrthonormalized() -- I have no idea what the math/science behind this is. I haven't taken physics yet. I'm just going based on the equations, man ;-;
 --	local ortho = {}
-	
+
 --	for y = 1, #self.Contents, 1 do
 --		--print("e")
 --		local vi = {table.unpack(self.Contents[y])}
@@ -1227,12 +1232,151 @@ end
 --		table.insert(ortho, normalizeVector(vi))
 --		--print("Ortho: ",ortho)
 --	end
-	
+
 --	local orthoMatrix: Matrix = matrix.new(self.Size.A, self.Size.B)
 --	orthoMatrix:flood(ortho)
-	
+
 --	return orthoMatrix
 --end
+
+function matrix:find(needle: number, initx: number, inity: number)
+	for y, row: row in self.Contents do
+		if y > inity then
+			for x, point: point in row do
+				if point.Value == needle then
+					return point.Position
+				end
+			end
+		elseif y == inity then
+			for x, point: point in row do
+				if x >= initx then
+					if point.Value == needle then
+						return point.Position
+					end
+				end
+			end
+		end
+	end
+end
+
+function matrix:insertRow(points: {point | number}, position: number)
+	if not(#points == self.Size.B) then
+		error("Attempt to insert row with invalid number of points")
+	end
+	if not(position) or type(position) ~= "number" then position = #self.Contents end
+	if (position <= 0) or (position > self.Size.B + 1) then
+		error("Attempt to insert row at invalid position")
+	end
+	
+	if (self.Contents[position]) then
+		-- Shift every row down one
+		for i = #self.Contents, position, -1 do
+			self.Contents[i + 1] = self.Contents[i]
+		end
+	end
+	
+	self.Contents[position] = newRow(#self.Contents, self.Size.B, 0)
+	
+	for i, point in points do
+		self.Contents[position][i] = point or point.Value
+	end
+	
+	self.Size.B += 1
+	
+	return self
+end
+
+function matrix:removeRow(position: number)
+	if not(position) or type(position) ~= "number" then position = #self.Contents end
+	if (position <= 0) or (position > self.Size.B) then
+		error("Attempt to remove row at invalid position")
+	end
+	if self.Size.B == 1 then
+		error("Attempt to remove row from Matrix with one row")
+	end
+	
+	-- shift every row below this position up
+	for i = position, #self.Contents do
+		if not(i == 1) then
+			self.Contents[i - 1] = self.Contents[i]
+			
+			if i == #self.Contents then
+				table.remove(self.Contents, i)
+			end
+		else
+			table.remove(self.Contents, i)
+		end
+	end
+
+	self.Size.B -= 1
+
+	return self
+end
+
+function matrix:insertColumn(points: {point | number}, position: number)
+	if not(#points == self.Size.A) then
+		error("Attempt to insert column with invalid number of points")
+	end
+	if not(position) or type(position) ~= "number" then position = self.Size.A + 1 end
+	if (position <= 0) or (position > self.Size.A + 1) then
+		error("Attempt to insert column at invalid position")
+	end
+
+	if (self.Size.A >= position) then
+		-- Shift every column right one
+		for i = 1, self.Size.B do
+			self.Contents[i][position].Position.X += 1
+		end
+	end
+	
+	-- Set every value with x = position to corresponding point in table
+	for y, row in self.Contents do
+		local point = points[y]
+		if point then
+			row[position].Value = point or point.Value
+		end
+	end
+	self.Size.A += 1
+	
+	return self
+end
+
+function matrix:removeColumn(position: number)
+	if not(position) or type(position) ~= "number" then position = #self.Contents end
+	if (position <= 0) or (position > self.Size.A) then
+		error("Attempt to remove row at invalid position")
+	end
+	if self.Size.A == 1 then
+		error("Attempt to remove column from Matrix with one column")
+	end
+
+	-- shift every column to the right this position left one
+	for x = position, self.Size.A, 1 do
+		for y, row: row in self.Contents do
+			row[x].Position.X -= 1
+			
+			if row[x].Position.X == 0 then
+				table.remove(row, x)
+			end
+		end
+	end
+	
+	
+	for i = position, #self.Contents do
+		if not(i == 1) then
+			self.Contents[i - 1] = self.Contents[i]
+
+			if i == #self.Contents then
+				self.Contents[i] = empty
+			end
+
+		end
+	end
+
+	self.Size.A -= 1
+
+	return self
+end
 
 function matrix:isSingular()
 	if self:getDeterminant() == 0 then
@@ -1252,14 +1396,14 @@ end
 
 function matrix.zero(columns: number, rows: number)
 	if not(columns) or not(rows) then columns, rows = 3, 3 end
-	
+
 	local newMatrix = matrix.new(columns, rows, 0)
 	return newMatrix
 end
 
 function matrix.one(columns: number, rows: number)
 	if not(columns) or not(rows) then columns, rows = 3, 3 end
-	
+
 	local newMatrix = matrix.new(columns, rows, 1)
 	return newMatrix
 end
